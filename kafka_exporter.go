@@ -691,11 +691,11 @@ func main() {
 
 	customLabelsEnv, isSet := os.LookupEnv("CONSUMERGROUP_LAG_CUSTOM_LABELS")
 	if isSet{
-		plog.Infoln("Env CONSUMERGROUP_LAG_CUSTOM_LABELS is set, loding custom owner label for consumergroups")
+		plog.Infoln("Env CONSUMERGROUP_LAG_CUSTOM_LABELS is set, loading custom owner label for consumergroups")
 		var err error
 		customLabels, err = NewCustomCGLagLabels(customLabelsEnv, 1440, 60)
 		if err != nil{
-			plog.Errorln("Error initialazing CustomCGLagLabels structure, skipping labeling consumergroup lag metrics: ")
+			plog.Warnln("Error initialazing CustomCGLagLabels structure, skipping labeling consumergroup lag metrics: %v", err)
 		}
 	}
 
