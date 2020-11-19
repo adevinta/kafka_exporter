@@ -23,7 +23,7 @@ func NewCustomCGLagLabels(config string, CacheExpirationInMin, CachecleanupInter
 	labelByOwner := make(map[string][]string)
 	err := json.Unmarshal([]byte(config), &labelByOwner)
 	if err != nil {
-		plog.Debugf("Error unmarshalling Json string: %v", err)		
+		plog.Debugf("Error unmarshalling Json string:", err)		
 		return nil, err
 	}
 
@@ -32,7 +32,7 @@ func NewCustomCGLagLabels(config string, CacheExpirationInMin, CachecleanupInter
 		for _, startWith := range startWith {
 			// If key already exists then warn and skip the overwrite
 			if _, ok := labelByPrefix[startWith]; ok {
-				plog.Warnln("startWith key %s was set twice, skipping latest occurrence", startWith)
+				plog.Warnln("startWith key", startWith, "was set twice, skipping latest occurrence")
 				continue
 			}
 			labelByPrefix[startWith] = owner
@@ -50,7 +50,7 @@ func NewCustomCGLagLabels(config string, CacheExpirationInMin, CachecleanupInter
 func (c *CustomCGLagLabels) FetchLabel(groupId string) string {
 	owner, found := c.labelCache.Get(groupId)
 	if found {
-		plog.Debugf("Cache hit for consumergroup: \"%s\"", groupId)
+		plog.Debugf("Cache hit for consumergroup:", groupId)
 		c.labelCache.Set(groupId, owner, c.cacheExpirationInMin) // Let's renew TTL to keep a "kind"" of LRU
 		return owner.(string)
 	} else {
