@@ -10,11 +10,16 @@ import (
 
 // Custom labels for ConsumerGroups
 type CustomCGLagLabels struct {
-	labelByPrefix			map[string]string
-	labelCache			*go_cache.Cache
+	labelByPrefix					map[string]string
+	labelCache					*go_cache.Cache
+	cacheExpirationInMin				time.Duration
+	cachecleanupIntervalinMin			time.Duration
 }
 
-func NewCustomCGLagLabels(config string) (*CustomCGLagLabels, error){
+func NewCustomCGLagLabels(config string, CacheExpirationInMin, CachecleanupIntervalinMin time.Duration) (*CustomCGLagLabels, error){
+	cacheExpirationInMin := CacheExpirationInMin*time.Minute
+	cachecleanupIntervalinMin := CachecleanupIntervalinMin*time.Minute
+
 	labelByOwner := make(map[string][]string)
 	err := json.Unmarshal([]byte(config), &labelByOwner)
 	if err != nil {
@@ -24,22 +29,33 @@ func NewCustomCGLagLabels(config string) (*CustomCGLagLabels, error){
 	labelByPrefix := make(map[string]string)
 	for owner, startWith := range  labelByOwner{
 		for _, startWith := range startWith {
+			// If key already exist we Warn and skip the overwrite
+			if _, ok := labelByPrefix[startWith]; ok {
+				plog.Warnln("startWith key %s was set twice, skipping latest occurrence", startWith)
+				continue
+			}
 			labelByPrefix[startWith] = owner
 		}
 	}
-	labelCache := go_cache.New(1440*time.Minute, 60*time.Minute)
-	return &CustomCGLagLabels{labelByPrefix: labelByPrefix, labelCache: labelCache}, nil
+	labelCache := go_cache.New(cacheExpirationInMin, cachecleanupIntervalinMin)
+	return &CustomCGLagLabels{
+		labelByPrefix: labelByPrefix,
+		labelCache: labelCache,
+		cacheExpirationInMin: cacheExpirationInMin,
+		cachecleanupIntervalinMin: cachecleanupIntervalinMin,
+	}, nil
 }
 
 func (c *CustomCGLagLabels) FetchLabel(groupId string) string {
 	var owner, found = c.labelCache.Get(groupId)
 	if found {
 		plog.Debugf("Cache hit for consumergroup: \"%s\"", groupId)
+		c.labelCache.Set(groupId, owner, c.cacheExpirationInMin) // Let's renew TTL to keep a "kind"" of LRU
 		return owner.(string)
 	} else {
 		for startWith, owner := range c.labelByPrefix {
         		if strings.HasPrefix(groupId, startWith) {
-				c.labelCache.Set(groupId, owner, 1440*time.Minute)
+				c.labelCache.Set(groupId, owner, c.cacheExpirationInMin)
             			return owner
          		}
      		}

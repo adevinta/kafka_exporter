@@ -488,7 +488,7 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) {
 					if topicConsumed {
 						var currentOffsetSum int64
 						var lagSum int64
-						var ownerLabel = SetOwnerLabel(group.GroupId)
+						ownerLabel := SetOwnerLabel(group.GroupId)
 						for partition, offsetFetchResponseBlock := range partitions {
 							err := offsetFetchResponseBlock.Err
 							if err != sarama.ErrNoError {
@@ -692,7 +692,11 @@ func main() {
 	customLabelsEnv, isSet := os.LookupEnv("CONSUMERGROUP_LAG_CUSTOM_LABELS")
 	if isSet{
 		plog.Infoln("Env CONSUMERGROUP_LAG_CUSTOM_LABELS is set, loding custom owner label for consumergroups")
-		customLabels, _ = NewCustomCGLagLabels(customLabelsEnv)
+		var err error
+		customLabels, err = NewCustomCGLagLabels(customLabelsEnv, 1440, 60)
+		if err != nil{
+			plog.Errorln("Error initialazing CustomCGLagLabels structure, skipping labeling consumergroup lag metrics: ")
+		}
 	}
 
 	if *logSarama {

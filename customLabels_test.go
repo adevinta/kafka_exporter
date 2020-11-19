@@ -2,7 +2,6 @@ package main
 
 import (
 	"testing"
-	"os"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,9 +13,7 @@ const (
 )
 
 func TestNewCustomCGLagLabels_wrong_config(t *testing.T){
-	os.Setenv("CONSUMERGROUP_LAG_CUSTOM_LABELS", INCORRECT_CONSUMERGROUP_LAG_CUSTOM_LABELS)
-	customLabelsEnv, _ := os.LookupEnv("CONSUMERGROUP_LAG_CUSTOM_LABELS")
-	_, err := NewCustomCGLagLabels(customLabelsEnv)
+	_, err := NewCustomCGLagLabels(INCORRECT_CONSUMERGROUP_LAG_CUSTOM_LABELS, 1, 1)
 
 	if err == nil {
 		t.Errorf("Json string should have failed due to the wrong string json format")
@@ -24,9 +21,7 @@ func TestNewCustomCGLagLabels_wrong_config(t *testing.T){
 }
 
 func TestNewCustomCGLagLabels_correct_config(t *testing.T){
-	os.Setenv("CONSUMERGROUP_LAG_CUSTOM_LABELS", CORRECT_CONSUMERGROUP_LAG_CUSTOM_LABELS)
-	customLabelsEnv, _ := os.LookupEnv("CONSUMERGROUP_LAG_CUSTOM_LABELS")
-	customLabels, err := NewCustomCGLagLabels(customLabelsEnv)
+	customLabels, err := NewCustomCGLagLabels(CORRECT_CONSUMERGROUP_LAG_CUSTOM_LABELS, 1, 1)
 
 	// Assert No errors from json string to map
 	if err != nil {
@@ -39,9 +34,7 @@ func TestNewCustomCGLagLabels_correct_config(t *testing.T){
 }
 
 func TestFetchLabel_success(t *testing.T){
-	os.Setenv("CONSUMERGROUP_LAG_CUSTOM_LABELS", CORRECT_CONSUMERGROUP_LAG_CUSTOM_LABELS)
-	customLabelsEnv, _ := os.LookupEnv("CONSUMERGROUP_LAG_CUSTOM_LABELS")
-	customLabels, _ := NewCustomCGLagLabels(customLabelsEnv)
+	customLabels, _ := NewCustomCGLagLabels(CORRECT_CONSUMERGROUP_LAG_CUSTOM_LABELS, 1, 1)
 
 	// Value should not be in Cache, then Fetch it, and finally check the value is cached
 	_, found := customLabels.labelCache.Get("st-string1-consumergroup-name")
