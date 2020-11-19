@@ -23,7 +23,7 @@ func NewCustomCGLagLabels(config string, CacheExpirationInMin, CachecleanupInter
 	labelByOwner := make(map[string][]string)
 	err := json.Unmarshal([]byte(config), &labelByOwner)
 	if err != nil {
-		plog.Debugf("Error unmarshalling Json string:", err)		
+		plog.Debugln("Error unmarshalling Json string:", err)		
 		return nil, err
 	}
 
@@ -50,7 +50,7 @@ func NewCustomCGLagLabels(config string, CacheExpirationInMin, CachecleanupInter
 func (c *CustomCGLagLabels) FetchLabel(groupId string) string {
 	owner, found := c.labelCache.Get(groupId)
 	if found {
-		plog.Debugf("Cache hit for consumergroup:", groupId)
+		plog.Debugln("Cache hit for consumergroup:", groupId)
 		c.labelCache.Set(groupId, owner, c.cacheExpirationInMin) // Let's renew TTL to keep a "kind"" of LRU
 		return owner.(string)
 	} else {
