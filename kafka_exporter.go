@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -46,46 +45,8 @@ var (
 	consumergroupLagSum                *prometheus.Desc
 	consumergroupLagZookeeper          *prometheus.Desc
 	consumergroupMembers               *prometheus.Desc
+	customLabels			   *CustomCGLagLabels
 )
-
-// Convert the ENV json string in a map
-func getOwnerLabelMap() (map[string]string, bool) {
-	configMap := make(map[string][]string)
-	configMapByStartWith := make(map[string]string)
-
-	configString, isSet := os.LookupEnv("CONSUMERGROUP_LAG_CUSTOM_LABELS")
-	if isSet == false{
-		return configMapByStartWith, false
-	}
-
-	err := json.Unmarshal([]byte(configString), &configMap)
-	if err != nil {
-		plog.Warnln("Can not parse string from ENV CONSUMERGROUP_LAG_CUSTOM_LABELS, skipping setting owner label")
-		return configMapByStartWith, false
-	}
-
-	// We have owner as key and list of "start with" as values, we need to revert it
-	// for a more efficient lookup later on
-	for owner, startWithList := range configMap {
-		for _, startWith := range startWithList {
-			configMapByStartWith[startWith] = owner
-		}
-	}
-	return configMapByStartWith, true
-}
-
-// Finds the desired owner label when the groupId starts with a map key
-// It will returns in the first match
-func getConsumerGroupLagOwnerLabel(groupId string,  configMapByStartWith map[string]string) (string, bool){
-	for startWith, owner := range configMapByStartWith {
-		if strings.HasPrefix(groupId, startWith) {
-			return owner, true
-		}
-	}
-	return "", false
-}
-
-
 
 // Exporter collects Kafka stats from the given server and exports them using
 // the prometheus metrics package.
@@ -527,8 +488,7 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) {
 					if topicConsumed {
 						var currentOffsetSum int64
 						var lagSum int64
-						var configMapByStartWith, _ = getOwnerLabelMap()
-						var ownerLabel, _ = getConsumerGroupLagOwnerLabel(group.GroupId, configMapByStartWith)
+						var ownerLabel = SetOwnerLabel(group.GroupId)
 						for partition, offsetFetchResponseBlock := range partitions {
 							err := offsetFetchResponseBlock.Err
 							if err != sarama.ErrNoError {
@@ -586,6 +546,13 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) {
 func init() {
 	metrics.UseNilMetrics = true
 	prometheus.MustRegister(version.NewCollector("kafka_exporter"))
+}
+
+func SetOwnerLabel(GroupId string) string{
+	if customLabels != nil {
+		return customLabels.FetchLabel(GroupId)
+	}
+	return ""
 }
 
 func main() {
@@ -721,6 +688,12 @@ func main() {
 		"Amount of members in a consumer group",
 		[]string{"consumergroup"}, labels,
 	)
+
+	customLabelsEnv, isSet := os.LookupEnv("CONSUMERGROUP_LAG_CUSTOM_LABELS")
+	if isSet{
+		plog.Infoln("Env CONSUMERGROUP_LAG_CUSTOM_LABELS is set, loding custom owner label for consumergroups")
+		customLabels, _ = NewCustomCGLagLabels(customLabelsEnv)
+	}
 
 	if *logSarama {
 		sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
