@@ -695,7 +695,7 @@ func main() {
 		var err error
 		customLabels, err = NewCustomCGLagLabels(customLabelsEnv, 1440, 60)
 		if err != nil{
-			plog.Warnln("Error initialazing CustomCGLagLabels structure, skipping labeling consumergroup lag metrics: %v", err)
+			plog.Warnln("Error initialazing CustomCGLagLabels structure, skipping labeling consumergroup lag metrics:", err)
 		}
 	}
 
