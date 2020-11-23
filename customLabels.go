@@ -20,24 +20,33 @@ func NewCustomCGLagLabels(config string, CacheExpirationInMin, CachecleanupInter
 	cacheExpirationInMin := CacheExpirationInMin*time.Minute
 	cachecleanupIntervalinMin := CachecleanupIntervalinMin*time.Minute
 
-	labelByOwner := make(map[string][]string)
-	err := json.Unmarshal([]byte(config), &labelByOwner)
+	consumerNotifiers := make(map[string][]map[string]map[string][]string)
+	err := json.Unmarshal([]byte(config), &consumerNotifiers)
 	if err != nil {
 		plog.Debugln("Error unmarshalling Json string:", err)		
 		return nil, err
 	}
 
+	// We use ALL the startWith strings as keys and the owner tag as values
 	labelByPrefix := make(map[string]string)
-	for owner, startWith := range  labelByOwner{
-		for _, startWith := range startWith {
-			// If key already exists then warn and skip the overwrite
+	for  _, notifier:= range  consumerNotifiers["consumer_notifiers"]{
+		for _, startWith := range notifier["when"]["start_with"] {
+			// If prefix already exists then warn and skip the overwrite
 			if _, ok := labelByPrefix[startWith]; ok {
-				plog.Warnln("startWith key", startWith, "was set twice, skipping latest occurrence")
+				plog.Warnln("start_with prefix", startWith, "was set more than once, skipping latest occurrence.")
 				continue
 			}
-			labelByPrefix[startWith] = owner
+			for _, tag  := range notifier["set"]["tags"]{
+				if strings.HasPrefix(tag, "owner:"){
+					labelByPrefix[startWith] = strings.Split(tag, ":")[1]
+				} else {
+					plog.Warnln("Tag", tag, "is not supported for the consumergroup lag metrics")
+				}
+			}
 		}
 	}
+
+	// Create cache
 	labelCache := go_cache.New(cacheExpirationInMin, cachecleanupIntervalinMin)
 	return &CustomCGLagLabels{
 		labelByPrefix: labelByPrefix,

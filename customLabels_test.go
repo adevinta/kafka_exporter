@@ -8,8 +8,38 @@ import (
 
 
 const (
-	INCORRECT_CONSUMERGROUP_LAG_CUSTOM_LABELS = `{"team1": [["start-string1"], "team2": []}`
-	CORRECT_CONSUMERGROUP_LAG_CUSTOM_LABELS = `{"team1": ["st-string1", "start-string2"], "team2": ["this-start-string3"]}`
+	INCORRECT_CONSUMERGROUP_LAG_CUSTOM_LABELS = `{"consumer_notifiers": [[{"when":{ "starts_with":["string1", "string2"]}, "set": {"tags":["owner:fotocasa"]}}]}`
+	CORRECT_CONSUMERGROUP_LAG_CUSTOM_LABELS = `{
+		"consumer_notifiers": [
+			{
+				"when": {
+					"start_with": [
+						"string1",
+						"string2"
+					]
+				},
+				"set": {
+					"tags":[
+						"owner:fotocasa"
+					]
+				}
+			},
+			{
+				"when": {
+					"start_with": [
+						"string3",
+						"string4"
+					]
+				},
+				"set": {
+					"tags":[
+						"owner:mads"
+					]
+				}
+
+			}
+		]
+	}`
 )
 
 func TestNewCustomCGLagLabels_wrong_config(t *testing.T){
@@ -29,18 +59,18 @@ func TestNewCustomCGLagLabels_correct_config(t *testing.T){
 	}
 
 	// Assert labelByPrefix are correct
-	assert.Equal(t, customLabels.labelByPrefix["st-string1"], "team1")
-	assert.Equal(t, customLabels.labelByPrefix["this-start-string3"], "team2")
+	assert.Equal(t, customLabels.labelByPrefix["string1"], "fotocasa")
+	assert.Equal(t, customLabels.labelByPrefix["string3"], "mads")
 }
 
 func TestFetchLabel_success(t *testing.T){
 	customLabels, _ := NewCustomCGLagLabels(CORRECT_CONSUMERGROUP_LAG_CUSTOM_LABELS, 1, 1)
 
 	// Value should not be in Cache, then Fetch it, and finally check the value is cached
-	_, found := customLabels.labelCache.Get("st-string1-consumergroup-name")
+	_, found := customLabels.labelCache.Get("string1")
 	assert.Equal(t, found, false)
-	assert.Equal(t, customLabels.FetchLabel("st-string1-consumergroup-name"), "team1")
-	_, found = customLabels.labelCache.Get("st-string1-consumergroup-name")
+	assert.Equal(t, customLabels.FetchLabel("string1"), "fotocasa")
+	_, found = customLabels.labelCache.Get("string1")
 	assert.Equal(t, found, true)
 
 }
