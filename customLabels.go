@@ -16,11 +16,13 @@ type CustomCGLagLabels struct {
 	cachecleanupIntervalinMin			time.Duration
 }
 
+type Notifier map[string]map[string][]string
+
 func NewCustomCGLagLabels(config string, CacheExpirationInMin, CachecleanupIntervalinMin time.Duration) (*CustomCGLagLabels, error){
 	cacheExpirationInMin := CacheExpirationInMin*time.Minute
 	cachecleanupIntervalinMin := CachecleanupIntervalinMin*time.Minute
+	consumerNotifiers := make(map[string][]Notifier)
 
-	consumerNotifiers := make(map[string][]map[string]map[string][]string)
 	err := json.Unmarshal([]byte(config), &consumerNotifiers)
 	if err != nil {
 		plog.Debugln("Error unmarshalling Json string:", err)		
