@@ -8,6 +8,7 @@ language: go
 go:
 - 1.14
 
+after_success:
 - if [[ -n "$TRAVIS_TAG" ]]; then
   make crossbuild release;
   fi
