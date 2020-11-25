@@ -23,6 +23,7 @@ Table of Contents
 	-	[Brokers](#brokers)
 	-	[Topics](#topics)
 	-	[Consumer Groups](#consumer-groups)
+	-	[Custom tagging consumergroup lag metrics](#consumergroup-custom-tagging)
 -	[Grafana Dashboard](#grafana-dashboard)	
 -   [Contribute](#contribute)
 -   [Donation](#donation)
@@ -213,6 +214,16 @@ kafka_consumergroup_current_offset{consumergroup="KMOffsetCache-kafka-manager-38
 # TYPE kafka_consumergroup_lag gauge
 kafka_consumergroup_lag{consumergroup="KMOffsetCache-kafka-manager-3806276532-ml44w",partition="0",topic="__consumer_offsets"} 1
 ```
+
+### Custom tagging consumergroup lag metrics
+ConsumerGroup lag metrics can be tagged with `owner:$WHATEVER` when ENV `CONSUMERGROUP_LAG_CUSTOM_LABELS` is set.
+
+For example if I want to tag my consumergroups lag metrcis which start with `my-cool-consuemrgroup-xxxxxxxxxxxx` (consumer group names) with  `owner:myCoolTeam`
+then I set the ENV like this:
+`{"consumer_notifiers": [{"when":{"starts_with":["my-cool"]}, "set": { "tags":["owner:myCoolTeam"]}}]}`
+
+Custom tagging will be skipped when the `CONSUMERGROUP_LAG_CUSTOM_LABELS` format is wrong.
+
 
 Grafana Dashboard
 -------

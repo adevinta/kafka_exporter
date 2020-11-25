@@ -2,11 +2,63 @@ package main
 
 import (
 	"encoding/json"
-	go_cache "github.com/patrickmn/go-cache"
 	"strings"
 	"time"
 	plog "github.com/prometheus/common/log"
+	go_cache "github.com/patrickmn/go-cache"
+	"github.com/xeipuuv/gojsonschema"
 )
+
+// Expected Json schema
+const SCHEMA = `{
+	"type": "object",
+	"title": "Custom Tagging for consumer groups lag metrics",
+	"required": ["consumer_notifiers"],
+	"properties": {
+		"consumer_notifiers": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/notifier"
+			}
+		}
+	},
+	"definitions": {
+		"notifier": {
+			"type": "object",
+			"required": ["when", "set"],
+			"properties": {
+				"when": {
+					"type": "object",
+					"required": ["starts_with"],
+					"properties": {
+						"starts_with": {
+							"type": "array",
+							"items": {
+								"type": "string",
+								"description": "Consumer group prefix",
+								"pattern": "^[a-zA-Z0-9_i\\-]+$"
+							}
+						}
+					}
+				},
+				"set": {
+					"type": "object",
+					"required": ["tags"],
+					"properties": {
+						"tags": {
+							"type": "array",
+							"items": {
+								"type": "string",
+								"description": "For now it is just supported owner tag",
+								"pattern": "^owner:[a-zA-Z0-9_i\\-]+$"
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}`
 
 // Custom labels for ConsumerGroups
 type CustomCGLagLabels struct {
@@ -22,20 +74,39 @@ func NewCustomCGLagLabels(config string, CacheExpirationInMin, CachecleanupInter
 	cacheExpirationInMin := CacheExpirationInMin*time.Minute
 	cachecleanupIntervalinMin := CachecleanupIntervalinMin*time.Minute
 	consumerNotifiers := make(map[string][]Notifier)
+	schemaLoader := gojsonschema.NewStringLoader(SCHEMA)
+	documentLoader := gojsonschema.NewStringLoader(config)
 
-	err := json.Unmarshal([]byte(config), &consumerNotifiers)
+	// Validate Json schema
+	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
 	if err != nil {
-		plog.Debugln("Error unmarshalling Json string:", err)		
+		plog.Debugln("Error validating json schema", err)
+		return nil, err
+	}
+	if result.Valid() {
+		plog.Debugln("Valid json document")
+	} else {
+		plog.Debugln("The document is not valid. see errors :")
+		for _, desc := range result.Errors() {
+			plog.Errorln("Error:", desc)
+		}
+		return nil, err
+	}
+
+	// Convert json string into map
+	err = json.Unmarshal([]byte(config), &consumerNotifiers)
+	if err != nil {
+		plog.Debugln("Error unmarshalling Json string:", err)
 		return nil, err
 	}
 
 	// We use ALL the startWith strings as keys and the owner tag as values
 	labelByPrefix := make(map[string]string)
 	for  _, notifier:= range  consumerNotifiers["consumer_notifiers"]{
-		for _, startWith := range notifier["when"]["start_with"] {
+		for _, startWith := range notifier["when"]["starts_with"] {
 			// If prefix already exists then warn and skip the overwrite
 			if _, ok := labelByPrefix[startWith]; ok {
-				plog.Warnln("start_with prefix", startWith, "was set more than once, skipping latest occurrence.")
+				plog.Warnln("starts_with prefix", startWith, "was set more than once, skipping latest occurrence.")
 				continue
 			}
 			for _, tag  := range notifier["set"]["tags"]{

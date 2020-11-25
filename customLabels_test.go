@@ -13,7 +13,7 @@ const (
 		"consumer_notifiers": [
 			{
 				"when": {
-					"start_with": [
+					"starts_with": [
 						"string1",
 						"string2"
 					]
@@ -26,7 +26,7 @@ const (
 			},
 			{
 				"when": {
-					"start_with": [
+					"starts_with": [
 						"string3",
 						"string4"
 					]
