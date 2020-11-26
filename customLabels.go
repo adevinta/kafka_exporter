@@ -65,14 +65,12 @@ type CustomCGLagLabels struct {
 	labelByPrefix					map[string]string
 	labelCache					*go_cache.Cache
 	cacheExpirationInMin				time.Duration
-	cachecleanupIntervalinMin			time.Duration
+	cacheCleanupIntervalInMin			time.Duration
 }
 
 type Notifier map[string]map[string][]string
 
-func NewCustomCGLagLabels(config string, CacheExpirationInMin, CachecleanupIntervalinMin time.Duration) (*CustomCGLagLabels, error){
-	cacheExpirationInMin := CacheExpirationInMin*time.Minute
-	cachecleanupIntervalinMin := CachecleanupIntervalinMin*time.Minute
+func NewCustomCGLagLabels(config string, cacheExpirationInMin, cacheCleanupIntervalInMin time.Duration) (*CustomCGLagLabels, error){
 	consumerNotifiers := make(map[string][]Notifier)
 	schemaLoader := gojsonschema.NewStringLoader(SCHEMA)
 	documentLoader := gojsonschema.NewStringLoader(config)
@@ -120,12 +118,12 @@ func NewCustomCGLagLabels(config string, CacheExpirationInMin, CachecleanupInter
 	}
 
 	// Create cache
-	labelCache := go_cache.New(cacheExpirationInMin, cachecleanupIntervalinMin)
+	labelCache := go_cache.New(cacheExpirationInMin*time.Minute, cacheCleanupIntervalInMin*time.Minute)
 	return &CustomCGLagLabels{
 		labelByPrefix: labelByPrefix,
 		labelCache: labelCache,
-		cacheExpirationInMin: cacheExpirationInMin,
-		cachecleanupIntervalinMin: cachecleanupIntervalinMin,
+		cacheExpirationInMin: cacheExpirationInMin*time.Minute,
+		cacheCleanupIntervalInMin: cacheCleanupIntervalInMin*time.Minute,
 	}, nil
 }
 

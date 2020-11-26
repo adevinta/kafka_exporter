@@ -46,7 +46,7 @@ func TestNewCustomCGLagLabels_wrong_config(t *testing.T){
 	_, err := NewCustomCGLagLabels(INCORRECT_CONSUMERGROUP_LAG_CUSTOM_LABELS, 1, 1)
 
 	if err == nil {
-		t.Errorf("Json string should have failed due to the wrong string json format")
+		assert.Error(t, err, "Json string should have failed due to the wrong string json format")
 	}
 }
 
@@ -55,7 +55,7 @@ func TestNewCustomCGLagLabels_correct_config(t *testing.T){
 
 	// Assert No errors from json string to map
 	if err != nil {
-		t.Errorf("Json string should have not failed due to the correct string json format")
+		assert.NoError(t, err, "Json string should have not failed due to the correct string json format")
 	}
 
 	// Assert labelByPrefix are correct
