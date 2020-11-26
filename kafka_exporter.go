@@ -45,6 +45,7 @@ var (
 	consumergroupLagSum                *prometheus.Desc
 	consumergroupLagZookeeper          *prometheus.Desc
 	consumergroupMembers               *prometheus.Desc
+	customLabels			   *CustomCGLagLabels
 )
 
 // Exporter collects Kafka stats from the given server and exports them using
@@ -487,6 +488,7 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) {
 					if topicConsumed {
 						var currentOffsetSum int64
 						var lagSum int64
+						ownerLabel := SetOwnerLabel(group.GroupId)
 						for partition, offsetFetchResponseBlock := range partitions {
 							err := offsetFetchResponseBlock.Err
 							if err != sarama.ErrNoError {
@@ -510,7 +512,7 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) {
 									lagSum += lag
 								}
 								ch <- prometheus.MustNewConstMetric(
-									consumergroupLag, prometheus.GaugeValue, float64(lag), group.GroupId, topic, strconv.FormatInt(int64(partition), 10),
+									consumergroupLag, prometheus.GaugeValue, float64(lag), group.GroupId, topic, strconv.FormatInt(int64(partition), 10), ownerLabel,
 								)
 							} else {
 								plog.Errorf("No offset of topic %s partition %d, cannot get consumer group lag", topic, partition)
@@ -521,7 +523,7 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) {
 							consumergroupCurrentOffsetSum, prometheus.GaugeValue, float64(currentOffsetSum), group.GroupId, topic,
 						)
 						ch <- prometheus.MustNewConstMetric(
-							consumergroupLagSum, prometheus.GaugeValue, float64(lagSum), group.GroupId, topic,
+							consumergroupLagSum, prometheus.GaugeValue, float64(lagSum), group.GroupId, topic, ownerLabel,
 						)
 					}
 				}
@@ -544,6 +546,13 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) {
 func init() {
 	metrics.UseNilMetrics = true
 	prometheus.MustRegister(version.NewCollector("kafka_exporter"))
+}
+
+func SetOwnerLabel(GroupId string) string{
+	if customLabels != nil {
+		return customLabels.FetchLabel(GroupId)
+	}
+	return ""
 }
 
 func main() {
@@ -659,7 +668,7 @@ func main() {
 	consumergroupLag = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "consumergroup", "lag"),
 		"Current Approximate Lag of a ConsumerGroup at Topic/Partition",
-		[]string{"consumergroup", "topic", "partition"}, labels,
+		[]string{"consumergroup", "topic", "partition", "owner"}, labels,
 	)
 
 	consumergroupLagZookeeper = prometheus.NewDesc(
@@ -671,7 +680,7 @@ func main() {
 	consumergroupLagSum = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "consumergroup", "lag_sum"),
 		"Current Approximate Lag of a ConsumerGroup at Topic for all partitions",
-		[]string{"consumergroup", "topic"}, labels,
+		[]string{"consumergroup", "topic", "owner"}, labels,
 	)
 
 	consumergroupMembers = prometheus.NewDesc(
@@ -679,6 +688,16 @@ func main() {
 		"Amount of members in a consumer group",
 		[]string{"consumergroup"}, labels,
 	)
+
+	customLabelsEnv, isSet := os.LookupEnv("CONSUMERGROUP_LAG_CUSTOM_LABELS")
+	if isSet{
+		plog.Infoln("Env CONSUMERGROUP_LAG_CUSTOM_LABELS is set, loading custom owner label for consumergroups")
+		var err error
+		customLabels, err = NewCustomCGLagLabels(customLabelsEnv, 1440, 60)
+		if err != nil{
+			plog.Warnln("Error initialazing CustomCGLagLabels structure, skipping labeling consumergroup lag metrics:", err)
+		}
+	}
 
 	if *logSarama {
 		sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
