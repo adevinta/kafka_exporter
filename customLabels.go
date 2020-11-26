@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 	"time"
 	plog "github.com/prometheus/common/log"
 	go_cache "github.com/patrickmn/go-cache"
 	"github.com/xeipuuv/gojsonschema"
+	"errors"
 )
 
 // Expected Json schema
@@ -81,14 +83,14 @@ func NewCustomCGLagLabels(config string, cacheExpirationInMin, cacheCleanupInter
 		plog.Debugln("Error validating json schema", err)
 		return nil, err
 	}
-	if result.Valid() {
-		plog.Debugln("Valid json document")
-	} else {
+	if !result.Valid() {
 		plog.Debugln("The document is not valid. see errors :")
-		for _, desc := range result.Errors() {
-			plog.Errorln("Error:", desc)
+		var res bytes.Buffer
+		for _, err := range result.Errors() {
+			res.WriteString(err.String())
+			res.WriteString("\n")
 		}
-		return nil, err
+		return nil, errors.New(res.String())
 	}
 
 	// Convert json string into map
