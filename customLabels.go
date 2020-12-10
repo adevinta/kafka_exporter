@@ -38,7 +38,7 @@ const SCHEMA = `{
 							"items": {
 								"type": "string",
 								"description": "Consumer group prefix",
-								"pattern": "^[a-zA-Z0-9_i\\-]+$"
+								"pattern": "^[a-zA-Z0-9\\_\\-\\.]+$"
 							}
 						}
 					}
@@ -52,7 +52,7 @@ const SCHEMA = `{
 							"items": {
 								"type": "string",
 								"description": "For now it is just supported owner tag",
-								"pattern": "^owner:[a-zA-Z0-9_i\\-]+$"
+								"pattern": "^owner:[a-zA-Z0-9\\_\\-\\.]+$"
 							}
 						}
 					}
